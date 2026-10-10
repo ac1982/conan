@@ -1,0 +1,131 @@
+diff --git a/cyclopts/config/_common.py b/cyclopts/config/_common.py
+index a6c0515..86b6b18 100644
+--- a/cyclopts/config/_common.py
++++ b/cyclopts/config/_common.py
+@@ -108,7 +108,8 @@ class FileCacheKey:
+     """
+ 
+     def __init__(self, path: str | Path):
+-        self.path = Path(path).absolute()
++        # Track the target identity so retargeting a symlink invalidates the cache.
++        self.path = Path(path).resolve()
+         if self.path.exists():
+             stat = self.path.stat()
+             self._mtime = stat.st_mtime
+@@ -163,7 +164,10 @@ class ConfigFromFile(ConfigBase):
+     @property
+     def config(self) -> dict[str, Any]:
+         assert isinstance(self.path, Path)
+-        for parent in self.path.expanduser().resolve().absolute().parents:
++        # Resolve the directory only: resolving the file itself can change its basename
++        # when it is a symlink, causing us to load a different file or miss it entirely.
++        directory = self.path.expanduser().parent.resolve()
++        for parent in (directory, *directory.parents):
+             candidate = parent / self.path.name
+             if candidate.exists():
+                 cache_key = FileCacheKey(candidate)
+diff --git a/tests/config/test_common.py b/tests/config/test_common.py
+index 0f31d5d..29580b5 100644
+--- a/tests/config/test_common.py
++++ b/tests/config/test_common.py
+@@ -324,3 +324,40 @@ def test_config_common_empty_document_is_empty_mapping(tmp_path):
+ 
+     assert config.config == {}  # freshly loaded
+     assert config.config == {}  # served from the cache
++
++
++@pytest.mark.parametrize("must_exist", [True, False])
++@pytest.mark.parametrize("search_parents", [True, False])
++def test_config_common_symlink_to_renamed_file(tmp_path, config, mocker, must_exist, search_parents):
++    """Load the requested symlink rather than reconstructing a path beside its target."""
++    target = tmp_path / "settings" / "renamed.dummy"
++    target.parent.mkdir()
++    target.touch()
++    try:
++        config.path.symlink_to(target)
++    except OSError:
++        pytest.skip("Creating symlinks is not supported on this platform")
++    config.must_exist = must_exist
++    config.search_parents = search_parents
++    spy_load_config = mocker.spy(config, "_load_config")
++
++    assert config.config["key1"] == "foo1"
++    spy_load_config.assert_called_once_with(config.path)
++
++
++@pytest.mark.parametrize("search_parents", [True, False])
++def test_config_common_symlink_ignores_same_named_file_beside_target(tmp_path, config, mocker, search_parents):
++    """A same-named file in the target directory must not replace the requested config."""
++    target = tmp_path / "settings" / "renamed.dummy"
++    target.parent.mkdir()
++    target.touch()
++    (target.parent / config.path.name).touch()
++    try:
++        config.path.symlink_to(target)
++    except OSError:
++        pytest.skip("Creating symlinks is not supported on this platform")
++    config.search_parents = search_parents
++    spy_load_config = mocker.spy(config, "_load_config")
++
++    _ = config.config
++    spy_load_config.assert_called_once_with(config.path)
+diff --git a/tests/config/test_json.py b/tests/config/test_json.py
+index 1beaa79..d0731a9 100644
+--- a/tests/config/test_json.py
++++ b/tests/config/test_json.py
+@@ -1,4 +1,5 @@
+ import json
++import os
+ from pathlib import Path
+ from textwrap import dedent
+ 
+@@ -154,3 +155,49 @@ def test_config_empty_json(tmp_path, console):
+         """
+     )
+     assert actual == expected
++
++
++@pytest.mark.parametrize("same_named_neighbor", [True, False])
++def test_config_json_symlink_uses_target_contents(app, tmp_path, same_named_neighbor):
++    """Symlinked configs supply CLI defaults and still reload after the target changes."""
++    target = tmp_path / "settings" / "stored-settings.json"
++    target.parent.mkdir()
++    target.write_text('{"port": 8123}')
++    config_path = tmp_path / "config.json"
++    if same_named_neighbor:
++        (target.parent / config_path.name).write_text('{"port": 9000}')
++    try:
++        config_path.symlink_to(target)
++    except OSError:
++        pytest.skip("Creating symlinks is not supported on this platform")
++    app.config = Json(config_path)
++
++    @app.default
++    def main(port: int = 1234):
++        return port
++
++    assert app([]) == 8123
++    assert app([]) == 8123  # Cached contents still come from the symlink target.
++    target.write_text('{"port": 12345}')
++    assert app([]) == 12345
++
++
++def test_config_json_symlink_retarget_invalidates_cache(tmp_path):
++    """Retargeting a config symlink invalidates equal-size, equal-mtime cached data."""
++    targets = [tmp_path / name / "config.json" for name in ("first", "second")]
++    for target, port in zip(targets, (8123, 9000), strict=True):
++        target.parent.mkdir()
++        target.write_text(json.dumps({"port": port}))
++    stat = targets[0].stat()
++    os.utime(targets[1], ns=(stat.st_atime_ns, stat.st_mtime_ns))
++    config_path = tmp_path / "config.json"
++    try:
++        config_path.symlink_to(targets[0])
++    except OSError:
++        pytest.skip("Creating symlinks is not supported on this platform")
++    config = Json(config_path)
++
++    assert config.config == {"port": 8123}
++    config_path.unlink()
++    config_path.symlink_to(targets[1])
++    assert config.config == {"port": 9000}

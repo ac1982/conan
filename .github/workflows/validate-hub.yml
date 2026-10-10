@@ -1,0 +1,16 @@
+name: Validate contribution hub
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate manifests, hashes, and materializer guardrails offline
+        run: python3 -m unittest discover -s tests -v

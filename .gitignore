@@ -1,0 +1,9 @@
+# Materialized upstream repositories, dependencies, and local Python artifacts
+.worktrees/
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+node_modules/
+dist/
+coverage/

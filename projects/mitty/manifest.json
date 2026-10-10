@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "project": "mitty",
+  "title": "Propagate non-Error callback rejections",
+  "upstream_url": "https://github.com/jcubic/mitty.git",
+  "base_commit": "08bf0d226fe9d7a2a1665ca189acf4b8db66d52e",
+  "base_url": "https://github.com/jcubic/mitty/commit/08bf0d226fe9d7a2a1665ca189acf4b8db66d52e",
+  "status": "reviewed_internal_draft",
+  "patch": {
+    "file": "fix.patch",
+    "sha256": "f868715d7c869e5a0b23a16574c867c115d54fe0686690971a643942fdd5811b"
+  },
+  "changed_files": [
+    "src/client.ts",
+    "test/callback-rejection.test.ts"
+  ],
+  "license": {
+    "spdx": "MIT",
+    "file": "LICENSE.upstream",
+    "sha256": "f423dec55fbb38979fb04d2de5a864e2d072f5c9142e11729c180ef419980ce3",
+    "source_url": "https://github.com/jcubic/mitty/blob/08bf0d226fe9d7a2a1665ca189acf4b8db66d52e/LICENSE"
+  },
+  "reviewed_on": "2026-10-10",
+  "upstream_submission": "Not submitted by this work; separate upstream handoff required."
+}
