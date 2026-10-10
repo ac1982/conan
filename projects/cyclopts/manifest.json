@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "project": "cyclopts",
+  "title": "Preserve symlinked configuration filenames",
+  "upstream_url": "https://github.com/BrianPugh/cyclopts.git",
+  "base_commit": "0b06f0f781f7b97fc6e75d1ef7673cabd1dca23d",
+  "base_url": "https://github.com/BrianPugh/cyclopts/commit/0b06f0f781f7b97fc6e75d1ef7673cabd1dca23d",
+  "status": "reviewed_internal_draft",
+  "patch": {
+    "file": "fix.patch",
+    "sha256": "37ba671636591041bb830125fa12324ddd8be376510156d591ad1f1b95066e89"
+  },
+  "changed_files": [
+    "cyclopts/config/_common.py",
+    "tests/config/test_common.py",
+    "tests/config/test_json.py"
+  ],
+  "license": {
+    "spdx": "Apache-2.0",
+    "file": "LICENSE.upstream",
+    "sha256": "f14b20048c12393cb9920065c47fadc030210b0f9cab9849ce0a68a063ededc5",
+    "source_url": "https://github.com/BrianPugh/cyclopts/blob/0b06f0f781f7b97fc6e75d1ef7673cabd1dca23d/LICENSE"
+  },
+  "reviewed_on": "2026-10-10",
+  "upstream_submission": "Not submitted by this work; separate upstream handoff required."
+}

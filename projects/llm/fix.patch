@@ -1,0 +1,63 @@
+diff --git a/llm/cli.py b/llm/cli.py
+index 19396a2..cd6a89d 100644
+--- a/llm/cli.py
++++ b/llm/cli.py
+@@ -3637,6 +3637,7 @@ def embed_multi(
+                         for encoding in encodings:
+                             try:
+                                 content = path.read_text(encoding=encoding)
++                                break
+                             except UnicodeDecodeError:
+                                 continue
+                     if content is None:
+diff --git a/tests/test_embed_cli.py b/tests/test_embed_cli.py
+index b81be8d..f196a63 100644
+--- a/tests/test_embed_cli.py
++++ b/tests/test_embed_cli.py
+@@ -673,6 +673,46 @@ def test_embed_multi_files_encoding(
+         ]
+ 
+ 
++@pytest.mark.parametrize(
++    "encodings,content,expected",
++    (
++        ([], "Café résumé".encode(), "Café résumé"),
++        (["utf-8", "latin-1"], "Café".encode(), "Café"),
++        (["latin-1", "utf-8"], "Café".encode(), "CafÃ©"),
++        (["ascii", "utf-8", "latin-1"], "Café".encode(), "Café"),
++        ([], "Café".encode("latin-1"), "Café"),
++        (["utf-16", "latin-1"], "雪".encode("utf-16"), "雪"),
++    ),
++)
++def test_embed_multi_files_first_successful_encoding(
++    db_factory, tmp_path, embed_demo, encodings, content, expected
++):
++    (tmp_path / "document.txt").write_bytes(content)
++    db_path = tmp_path / "embeddings.db"
++    args = [
++        "embed-multi",
++        "files",
++        "-d",
++        str(db_path),
++        "-m",
++        "embed-demo",
++        "--files",
++        str(tmp_path),
++        "*.txt",
++        "--store",
++    ]
++    for encoding in encodings:
++        args.extend(("--encoding", encoding))
++    result = CliRunner().invoke(cli, args, catch_exceptions=False)
++    assert result.exit_code == 0
++    assert not result.stderr
++    assert embed_demo.embedded_content == [expected]
++    embeddings_db = db_factory(str(db_path))
++    assert list(embeddings_db.query("select id, content from embeddings")) == [
++        {"id": "document.txt", "content": expected}
++    ]
++
++
+ def test_default_embedding_model():
+     runner = CliRunner()
+     result = runner.invoke(cli, ["embed-models", "default"])
